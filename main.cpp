@@ -14,17 +14,13 @@
 #include <vtkRenderer.h>
 #include <vtkCommand.h>
 
-//!IplImage to vtkImageData
+// see : https://www.vtk.org/pipermail/vtkusers/2014-July/084639.html
+// for more inspiration
+
 /**
- * Transforms data from cv::Mat to vtkImageData. It assumes
- * that parameters are correctly initialized.
- *
- * \param src OpenCV matrix representing the image data (source)
- *
- * \param dst vtkImageData representing the image (destiny)
- *
+ * Transforms data from cv::Mat to vtkImageData
  */
-void Ipl2VTK(const cv::Mat& src, const vtkSmartPointer<vtkImageData>& dst)
+void ipl2vtk(const cv::Mat& src, const vtkSmartPointer<vtkImageData>& dst)
 {
     cv::Mat src_rgb;
     cv::cvtColor( src, src_rgb, CV_BGR2RGB );
@@ -50,36 +46,34 @@ void Ipl2VTK(const cv::Mat& src, const vtkSmartPointer<vtkImageData>& dst)
     return;
 }
 
-//!Class vtkTimerCallback
 /**
  * This class add support for timing events
  */
-class vtkTimerCallback : public vtkCommand
+class vtkTimerCallback final : public vtkCommand
 {
+public:
+    vtkTimerCallback() {}
+    ~vtkTimerCallback() {};
 
 public:
-    vtkTimerCallback():frame(0){}
-    ~vtkTimerCallback(){};
 
-public:
-    static vtkTimerCallback *New()
+    static vtkTimerCallback* New()
     {
-        vtkTimerCallback *cb = new vtkTimerCallback;
-        cb->TimerCount = 0;
-        return cb;
+        return new vtkTimerCallback();
     }
 
-    virtual void Execute(vtkObject *vtkNotUsed(caller), unsigned long eventId,
-                       void *vtkNotUsed(callData))
+    void Execute(   vtkObject *vtkNotUsed(caller),
+                    unsigned long eventId,
+                    void *vtkNotUsed(callData))
     {
         if (vtkCommand::TimerEvent == eventId)
         {
-            ++this->TimerCount;
+            ++timerCount;
         }
-        cout << this->TimerCount << endl;
+        cout << timerCount << endl;
         frame = cvQueryFrame(capture);
         cv::Mat imageMatrix(frame,true);
-        Ipl2VTK(imageMatrix, imageData);
+        ipl2vtk(imageMatrix, imageData);
         window->Render();
 
     }
@@ -96,12 +90,12 @@ public:
 
     void SetActor(vtkImageActor *act)
     {
-        actor = act;
+        //NOTHING TO DO YET
     }
 
     void SetRenderer(vtkRenderer *rend)
     {
-        renderer = rend;
+        //NOTHING TO DO YET
     }
 
     void SetRenderWindow(vtkRenderWindow *wind)
@@ -110,12 +104,10 @@ public:
     }
 
 private:
-    int TimerCount;
-    IplImage *frame;
-    CvCapture *capture;
+    int timerCount = 0;
+    IplImage* frame = nullptr;
+    CvCapture* capture = nullptr;
     vtkSmartPointer<vtkImageData> imageData;
-    vtkSmartPointer<vtkImageActor> actor;
-    vtkSmartPointer<vtkRenderer> renderer;
     vtkSmartPointer<vtkRenderWindow> window;
 };
 
@@ -143,7 +135,7 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkImageData> imageData = vtkSmartPointer<vtkImageData>::New();
     cv::Mat imageMatrix(frame,true);
 
-    Ipl2VTK( imageMatrix, imageData );
+    ipl2vtk( imageMatrix, imageData );
 
     vtkSmartPointer<vtkImageActor> actor = vtkSmartPointer<vtkImageActor>::New();
     actor->SetInputData(imageData);
@@ -164,8 +156,6 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkTimerCallback> timer = vtkSmartPointer<vtkTimerCallback>::New();
     timer->SetImageData(imageData);
     timer->SetCapture(capture);
-    timer->SetActor(actor);
-    timer->SetRenderer(renderer);
     timer->SetRenderWindow(renderWindow);
     renderInteractor->AddObserver(vtkCommand::TimerEvent, timer);
 
