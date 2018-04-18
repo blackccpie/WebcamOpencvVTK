@@ -1,7 +1,6 @@
 #include <iostream>
 
-#include <cv.h>
-#include <highgui.h>
+#include <opencv2/opencv.hpp>
 
 #include <vtkNew.h>
 #include <vtkSmartPointer.h>
@@ -71,14 +70,13 @@ public:
             ++timerCount;
         }
         cout << timerCount << endl;
-        frame = cvQueryFrame(capture);
-        cv::Mat imageMatrix(frame,true);
-        ipl2vtk(imageMatrix, imageData);
+        *capture >> imageMatrix;
+        ipl2vtk( imageMatrix, imageData );
         window->Render();
 
     }
 
-    void SetCapture(CvCapture *cap)
+    void SetCapture(cv::VideoCapture* cap)
     {
         capture = cap;
     }
@@ -105,8 +103,8 @@ public:
 
 private:
     int timerCount = 0;
-    IplImage* frame = nullptr;
-    CvCapture* capture = nullptr;
+    cv::Mat imageMatrix;
+    cv::VideoCapture* capture = nullptr;
     vtkSmartPointer<vtkImageData> imageData;
     vtkSmartPointer<vtkRenderWindow> window;
 };
@@ -114,27 +112,22 @@ private:
 //!Entry point
 int main(int argc, char *argv[])
 {
-    IplImage* frame = nullptr;
-    CvCapture* capture = nullptr;
+    cv::Mat imageMatrix;
 
-    capture = cvCaptureFromCAM(0);
-    if(!capture)
+    cv::VideoCapture capture(1); // open the default camera
+	capture.set(CV_CAP_PROP_FRAME_WIDTH , 640); 
+	capture.set(CV_CAP_PROP_FRAME_HEIGHT , 480); 
+	capture.set (CV_CAP_PROP_FOURCC, CV_FOURCC('B', 'G', 'R', '3'));
+
+	if(!capture.isOpened())  // check if we succeeded
     {
         std::cout << "Unable to open the device" << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    frame = cvQueryFrame(capture);
-    if(!frame)
-    {
-        std::cout << "Unable to get frames from the device" << std::endl;
-        cvReleaseCapture(&capture);
-        exit(EXIT_FAILURE);
-    }
+    capture >> imageMatrix;
 
     vtkSmartPointer<vtkImageData> imageData = vtkSmartPointer<vtkImageData>::New();
-    cv::Mat imageMatrix(frame,true);
-
     ipl2vtk( imageMatrix, imageData );
 
     vtkSmartPointer<vtkImageActor> actor = vtkSmartPointer<vtkImageActor>::New();
@@ -155,13 +148,11 @@ int main(int argc, char *argv[])
 
     vtkSmartPointer<vtkTimerCallback> timer = vtkSmartPointer<vtkTimerCallback>::New();
     timer->SetImageData(imageData);
-    timer->SetCapture(capture);
+    timer->SetCapture(&capture);
     timer->SetRenderWindow(renderWindow);
     renderInteractor->AddObserver(vtkCommand::TimerEvent, timer);
 
     renderInteractor->Start();
-
-    cvReleaseCapture(&capture);
 
     return 0;
 }
