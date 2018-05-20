@@ -72,7 +72,15 @@ private:
 				_mat2VTK();
 				m_render_window->Render();
 
-				std::cout << ++m_timer_count << std::endl;
+				static std::chrono::time_point<std::chrono::system_clock> last, current;
+
+				current = std::chrono::system_clock::now();
+
+				auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>( current - last ).count();
+
+				std::cout << "FPS : " << 1000 / elapsed_ms << std::endl;
+
+				last = current;
 			}
 		}
 
@@ -134,10 +142,12 @@ private:
 	vtkSmartPointer<vtkTimerCallback> m_timer = vtkSmartPointer<vtkTimerCallback>::New();
 };
 
+bool g_run = true;
+
 //!Entry point
 int main(int argc, char *argv[])
 {
-	MyVtkVideoRender my_renderer( 640, 480 );
+	   MyVtkVideoRender my_renderer( 1280, 720 );
 
 	std::thread t([&my_renderer]()
 	{
@@ -150,7 +160,7 @@ int main(int argc, char *argv[])
 			exit(EXIT_FAILURE);
 		}
 
-		while(true)
+		while(g_run)
 		{
 			capture >> image_mat;
 			my_renderer.SetImage( image_mat );
@@ -158,6 +168,9 @@ int main(int argc, char *argv[])
 	});
 
 	my_renderer.Start();
+
+	g_run = false;
+	t.join();
 
     return 0;
 }
